@@ -130,11 +130,6 @@ class uHTR():
 
 			for chip in xrange(12):
 
-				cwd2=os.getcwd()
-				if not os.path.exists(str(chip)):
-					os.makedirs(str(chip))
-				os.chdir(cwd2  + "/" + str(chip))
-
 				chip_map=self.get_QIE_map(qslot, chip)
 				ped_key = "{0}_{1}_{2}".format(chip_map[0], chip_map[1], chip_map[2])
 				chip_arr = ped_results[ped_key]
