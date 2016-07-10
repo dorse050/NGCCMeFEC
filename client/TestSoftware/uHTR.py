@@ -215,7 +215,7 @@ class uHTR():
 				if slope <= 1.15 and slope >=0.95: test_pass = True
 				self.update_QIE_results(qslot, chip, "ci", test_pass)
 
-				if self.V: print "qslot: {0}, chip: {1}, slope: {2}, pass: {3}".format(qslot, chip, slope, test_pass)
+				if self.V: print 'qslot: {0}, chip: {1}, slope: {2}, pass: {3}'.format(qslot, chip, slope, test_pass)
 
 				#update slopes for final histogram
 				histo_slopes.append(slope)
