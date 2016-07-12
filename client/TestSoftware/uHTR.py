@@ -411,7 +411,7 @@ class uHTR():
 		os.chdir(cwd)
 
 	
-	def make_jsons(self, mapString, pedString, citString, shuntString, phsString):
+	def make_jsons(self, mapString, pedString, ciString, shuntString, phsString):
 		
 		os.chdir(self.home + "/jsonResults")
 		for qslot in self.qcards:
@@ -451,8 +451,8 @@ class uHTR():
 
 			jd["TestOutputs"] = {}
 			jd["TestOutputs"]["mappingResults"] = mapString
-			jd["TestOutputs"]["pedestalResults"] = pedString
-			jd["TestOutputs"]["citResults"] = citString
+			jd["TestOutputs"]["pedResults"] = pedString
+			jd["TestOutputs"]["ciResults"] = ciString
 			jd["TestOutputs"]["shuntResults"] = shuntString
 			jd["TestOutputs"]["phaseResults"] = phsString
 
