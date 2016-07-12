@@ -83,7 +83,6 @@ class uHTR():
 # Results of each test recorded in master_dict
 #############################################################
 
-
 	def ped_test(self):
 		ped_settings = list(i-31 for i in xrange(63))
 		ped_results={}
@@ -201,11 +200,6 @@ class uHTR():
 			os.makedirs("ci_plots")
 		os.chdir(cwd  + "/ci_plots")
 
-		#analyze results and make graphs
-		cwd=os.getcwd()
-		if not os.path.exists("ci_plots"):
-			os.makedirs("ci_plots")
-		os.chdir(cwd  + "/ci_plots")
 		for qslot in self.qcards:
 
 			cwd2=os.getcwd()
@@ -494,17 +488,6 @@ class uHTR():
 		key="({0}, {1})".format(qslot, chip)
 		return self.master_dict[key]
 
-	def get_QIE_results(self, qslot, chip, test_key=""):
-		### Returns the (pass, fail) tuple of specific test
-		qie_results=self.get_QIE(qslot, chip)[test_key]
-		return (qie_results[0], qie_results[1])
-
-	def update_QIE_test(self, qslot, chip, test_key, results):
-		#results so that True = pass and False = fail
-		qie_results=self.get_QIE(qslot, chip)[test_key]
-		if results: qie_results[0]+=1
-		else: qie_results[1]+=1
-
 	def get_QIE_map(self, qslot, chip):
 		key="({0}, {1})".format(qslot, chip)
 		qie=self.master_dict[key]
@@ -633,6 +616,7 @@ class uHTR():
 		return histo_results
 
 #############################################################
+
 
 #############################################################
 # Generate and read TDC txt 
@@ -823,7 +807,6 @@ def get_histo(crate, slot, n_orbits=5000, sepCapID=0, file_out=""):
 
 
 def getHistoInfo(file_in="", sepCapID=False, signal=False, qieRange = 0):
-	ROOT.gROOT.SetBatch()
 	slot_result = {}
 	f = ROOT.TFile(file_in, "READ")
 	if sepCapID:
@@ -915,6 +898,8 @@ def getTDCInfo(rawOutput):
 			slotResult["%d"%(Link)]["%d"%(Channel)].append(int(TDCVal))
 	return slotResult
 
+
+def get_tdcs(crate, slots):
 
 	rawDictionary = {}
 	spyCMDS = [
@@ -1076,3 +1061,8 @@ def get_link_info(crate, slot):
 	linkInfo = {}
         statCMDs = ["0", "LINK", "STATUS", "QUIT", "EXIT"]
         statsPrintOut = send_commands(crate=crate, slot=slot, cmds=statCMDs)
+        linkInfo["BCN Status"] = get_BCN_status(statsPrintOut)
+        linkInfo["BPR Status"] = get_BPR_status(statsPrintOut)
+        linkInfo["AOD Status"] = get_AOD_status(statsPrintOut)
+        linkInfo["ON Status"] = get_ON_links(statsPrintOut)
+	return linkInfo
