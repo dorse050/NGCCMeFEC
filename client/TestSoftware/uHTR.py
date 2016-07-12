@@ -26,11 +26,11 @@ if __name__ == "__main__":
 	b = webBus("pi5", 0)
 	uhtr = uHTR(uhtr_slots, qcard_slots, b, "Mason Dorseth", False)
 
-#	uhtr.ped_test()
-#	uhtr.ci_test()
+	uhtr.ped_test()
+	uhtr.ci_test()
 	uhtr.shunt_test()
 	uhtr.phase_test()
-#	uhtr.make_jsons()
+	uhtr.make_jsons()
 
 class uHTR():
 	def __init__(self, uhtr_slots, qcard_slots, bus, user, overwrite, verbosity=True):
@@ -122,9 +122,9 @@ class uHTR():
 		for qslot in self.qcards:
 
 			cwd2=os.getcwd()
-		       	if not os.path.exists(str(qslot)):
-	       			os.makedirs(str(qslot))
-       			os.chdir(cwd2  + "/" + str(qslot))
+			if not os.path.exists(str(qslot)):
+				os.makedirs(str(qslot))
+			os.chdir(cwd2  + "/" + str(qslot))
 
 			for chip in xrange(12):
 
@@ -150,7 +150,7 @@ class uHTR():
 				#update slopes for final histogram
 				histo_slopes.append(slope)
 				
-	       		os.chdir(cwd2)
+			os.chdir(cwd2)
 		os.chdir(cwd)
 
 		#make histogram of all slope results
@@ -180,11 +180,11 @@ class uHTR():
 			histo_results=self.get_histo_results(self.crate, self.uhtr_slots, signalOn=True, out_dir="ci_histos_{0}".format(setting))
 
 			for uhtr_slot, uhtr_slot_results in histo_results.iteritems():
-	                        for chip, chip_results in uhtr_slot_results.iteritems():
+				for chip, chip_results in uhtr_slot_results.iteritems():
 					key="{0}_{1}_{2}".format(uhtr_slot, chip_results["link"], chip_results["channel"])
 					if setting == 90: ci_results[key]=[]
 					totalSignal = 0
-				       	if 'signalBinMax_1' in chip_results:
+					if 'signalBinMax_1' in chip_results:
 						totalSignal = adc.linearize(chip_results['signalBinMax_1'])
 						if 'signalBinMax_2' in chip_results:	# get 2nd peak if needed
 							totalSignal += adc.linearize(chip_results['signalBinMax_2'])
@@ -222,12 +222,12 @@ class uHTR():
 				#update slopes for final histogram
 				histo_slopes.append(slope)
 
-		       	os.chdir(cwd2)
+			os.chdir(cwd2)
 		os.chdir(cwd)
 
 		#make histogram of all slope results
 		os.chdir(cwd + "/histo_statistics")	
-		self.make_histo("ci", histo_slopes, 0, 2)
+		self.make_histo("ci", histo_slopes, 0.5, 1.5)
 		os.chdir(cwd)
  
 	def shunt_test(self):
@@ -287,11 +287,11 @@ class uHTR():
 		# calculate average default CI peak of default shunt
 		default_peaks_avg = sum(default_peaks)/len(default_peaks)
 
-	       	#analyze results and make graphs
+		#analyze results and make graphs
 		cwd = os.getcwd()
 		if not os.path.exists("shunt_plots"):	
-       			os.makedirs("shunt_plots")
-	       	os.chdir(cwd  + "/shunt_plots")
+			os.makedirs("shunt_plots")
+		os.chdir(cwd  + "/shunt_plots")
 
 		for qslot in self.qcards:
 		
@@ -411,7 +411,7 @@ class uHTR():
 		os.chdir(cwd)
 
 	
-	def make_jsons(self, mapString, pedString, citString, shuntString, phsString):
+	def make_jsons(self, mapString, pedString, ciString, shuntString, phsString):
 		
 		os.chdir(self.home + "/jsonResults")
 		for qslot in self.qcards:
@@ -451,8 +451,8 @@ class uHTR():
 
 			jd["TestOutputs"] = {}
 			jd["TestOutputs"]["mappingResults"] = mapString
-			jd["TestOutputs"]["pedestalResults"] = pedString
-			jd["TestOutputs"]["citResults"] = citString
+			jd["TestOutputs"]["pedResults"] = pedString
+			jd["TestOutputs"]["ciResults"] = ciString
 			jd["TestOutputs"]["shuntResults"] = shuntString
 			jd["TestOutputs"]["phaseResults"] = phsString
 
@@ -489,7 +489,7 @@ class uHTR():
 
 	def get_QIE_map(self, qslot, chip):
 		key="({0}, {1})".format(qslot, chip)
-                qie=self.master_dict[key]
+		qie=self.master_dict[key]
 		uhtr_slot=qie["uhtr_slot"]
 		link=qie["link"]
 		channel=qie["channel"]
@@ -520,7 +520,7 @@ class uHTR():
 			f += self.get_QIE_results(qslot, chip, test_key)[1]
 		return (p, f)
 
-#############################################################
+############################################################
 
 
 #############################################################
@@ -530,34 +530,50 @@ class uHTR():
 	def QIE_mapping(self):
 		# Records the uHTR slot, link, and channel of each QIE in master_dict
 		failures=[]
-		for qslot in self.qcards:
+		for j, qslot in enumerate(self.qcards):
 			if self.V: print 'mapping qslot '+str(qslot)
 			dc=hw.getDChains(qslot, self.bus)
 			hw.SetQInjMode(0, qslot, self.bus)
 			dc.read()
-			for chip in [0,6]:
-				for num in xrange(12):
-					dc[num].PedestalDAC(-9)
-					if num==chip:
-						dc[num].PedestalDAC(31)
-				dc.write()
-				dc.read()
-				info=self.get_mapping_histo()
-				if info is not None:
-					uhtr_slot=info[0]
-					link=info[1]
-					for i in xrange(6):
-						self.add_QIE(qslot, chip+i, uhtr_slot, link, 5-i)
-				else:
-					print 'mapping qcard {0} failed'.format(qslot)
-					failures.append(qslot)
+			
+			for mapchip in [0,6]:
+				try_map = True
+				while try_map:
+
+					for num in xrange(12):
+						dc[num].PedestalDAC(-9)
+						if num==mapchip:
+							dc[num].PedestalDAC(31)
+					dc.write()
+					dc.read()
+					info=self.get_mapping_histo()
+
+					if info is not None:
+						uhtr_slot=info[0]
+						link=info[1]
+						for i in xrange(6):
+							if mapchip in range(6): self.add_QIE(qslot, i, uhtr_slot, link, 5-i)
+							else: self.add_QIE(qslot, 6+i, uhtr_slot, link, 5-i)
+						try_map = False
+
+					elif mapchip == 5 or mapchip == 11:
+						if j not in failures:
+							print 'mapping qcard {0} failed really hard'.format(qslot)
+							failures.append(j)
+						try_map = False						
+
+					else: mapchip += 1
+
 			for chip in xrange(12):
 				dc[chip].PedestalDAC(6)
 				dc.write()
 				dc.read()
-		
-#		for failure in failures:
-#			self.qcards.remove(failure)
+
+		for failure in failures:
+			a = self.qcards[failure]
+			self.qcards.pop(failure)
+			print "qcard {0} successfully popped from self.qcards".format(a)
+
 
 		if self.V:
 			for qslot in self.qcards:
@@ -595,7 +611,7 @@ class uHTR():
 			slot_num = str(file.split('_')[-1].split('.root')[0])
 
 			histo_results[slot_num] = getHistoInfo(signal=signalOn, file_in=path_to_root+"/"+file)
-#		shutil.rmtree(out_dir)
+		shutil.rmtree(out_dir)
 		return histo_results
 
 #############################################################
