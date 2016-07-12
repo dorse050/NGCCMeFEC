@@ -26,11 +26,11 @@ if __name__ == "__main__":
 	b = webBus("pi5", 0)
 	uhtr = uHTR(uhtr_slots, qcard_slots, b, "Mason Dorseth", False)
 
-#	uhtr.ped_test()
-#	uhtr.ci_test()
-#	uhtr.shunt_test()
-#	uhtr.phase_test()
-#	uhtr.make_jsons()
+	uhtr.ped_test()
+	uhtr.ci_test()
+	uhtr.shunt_test()
+	uhtr.phase_test()
+	uhtr.make_jsons()
 
 class uHTR():
 	def __init__(self, uhtr_slots, qcard_slots, bus, user, overwrite, verbosity=True):
@@ -233,7 +233,7 @@ class uHTR():
 
 		#make histogram of all slope results
 		os.chdir(cwd + "/histo_statistics")	
-		self.make_histo("ci", histo_slopes, 0, 2)
+		self.make_histo("ci", histo_slopes, 0.5, 1.5)
 		os.chdir(cwd)
  
 	def shunt_test(self):
@@ -469,77 +469,7 @@ class uHTR():
 		os.chdir(self.cwd)
 	
 
-						peak_results[key].append(totalSignal)
-
-						if setting == 0:
-							default_peaks.append(totalSignal)
-					# else:
-						# print "Error: No signal seen!"
-
-
-			dataFile.write("\n\nPeak Results: \n")
-			dataFile.write(str(peak_results) + '\n\n')
-			dataFile.write("\n##########################################")
-			dataFile.write("\n##########################################\n")
-			if setting ==0:
-				dataFile.write("Default peaks: \n")
-				dataFile.write(str(default_peaks))
-
-		default_peaks_avg = sum(default_peaks)/len(default_peaks)
-
-		# for 15% error bound checking
-		dataFile.write("\n+++++++++++++++++++ 15 percent error ++++++++++++++++++++")
-		for qslot in self.qcards:
-			for chip in xrange(12):
-				dataFile.write('\n\n')
-				peak_key=str(self.get_QIE_map(qslot, chip))
-				chip_arr=peak_results[peak_key]
-				ratio_pf = [0, 0]
-				for setting in xrange(len(peak_results[peak_key])):
-					# print "##### Setting %d #####" %setting
-					pf = ''
-					ratio = float(peak_results[peak_key][setting]) / default_peaks_avg #ratio between shunt-adjusted peak & default peak
-					shuntRatio[setting].append(ratio)
-					if (ratio < nominalGainRatios[setting]*1.15 and ratio > nominalGainRatios[setting]*0.85): #within 10% of nominal
-						ratio_pf[0]+=1
-						grand_ratio_pf[0]+=1
-						pf = "PASS"
-					else:
-						ratio_pf[1]+=1
-						grand_ratio_pf[1]+=1
-						pf = "FAIL"
-
-					dataFile.write("\nqslot: {0}, chip: {1}, setting: {2}, ratio: {3}, p/f: {4}".format(qslot, chip, setting, ratio, pf))
-
-					self.get_QIE(qslot, chip)["shunt_scan"]=(ratio_pf[0], ratio_pf[1])
-
-
-		# Create histogram of all chips' ratios for each shunt setting
-		for count, sett in enumerate(settingList):
-			c = ROOT.TCanvas('c','c', 800,800)
-			c.cd()
-
-			hist = ROOT.TH1D('All Chips', 'Shunt Setting: {0} fC/LSB'.format(sett), 20, nominalGainRatios[count]*0.85, nominalGainRatios[count]*1.15)
-			hist.GetXaxis().SetTitle("Ratio (Shunted/Default)")
-			hist.GetYaxis().SetTitle("Number of Chips")
-			for rat in shuntRatio[count]:
-			    hist.Fill(rat)
-			hist.Draw()
-			c.Print('shunt%d.png'%count)
-
-		dataFile.write("\n\nTotal Pass/Fail for 15 percent error:  ("+str(grand_ratio_pf[0])+", "+str(grand_ratio_pf[1])+")")
-		print "Total Pass/Fail for 15 percent error:  (",grand_ratio_pf[0],", ",grand_ratio_pf[1],")"
-
-		dataFile.close()
-
-		# reset Gsel to close the function
-		for qslot in self.qcards:
-			dc=hw.getDChains(qslot, self.bus)
-			dc.read()
-			for chip in xrange(12):
-				dc[chip].Gsel(0) #set Gsel back to default
-			dc.write()
-			dc.read()
+#############################################################
 
 
 #############################################################
@@ -627,6 +557,7 @@ class uHTR():
 			for mapchip in [0,6]:
 				try_map = True
 				while try_map:
+
 					for num in xrange(12):
 						dc[num].PedestalDAC(-9)
 						if num==mapchip:
@@ -698,7 +629,7 @@ class uHTR():
 			slot_num = str(file.split('_')[-1].split('.root')[0])
 
 			histo_results[slot_num] = getHistoInfo(signal=signalOn, file_in=path_to_root+"/"+file)
-#		shutil.rmtree(out_dir)
+		shutil.rmtree(out_dir)
 		return histo_results
 
 #############################################################
