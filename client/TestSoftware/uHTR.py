@@ -538,8 +538,8 @@ class uHTR():
 			dc.read()
 			
 			for mapchip in [0,6]:
-				goodmap = False
-				while not goodmap:
+				try_map = True
+				while try_map:
 					for num in xrange(12):
 						dc[num].PedestalDAC(-9)
 						if num==mapchip:
@@ -554,25 +554,25 @@ class uHTR():
 						for i in xrange(6):
 							if mapchip in range(6): self.add_QIE(qslot, i, uhtr_slot, link, 5-i)
 							else: self.add_QIE(qslot, 6+i, uhtr_slot, link, 5-i)
-						goodmap = True
+						try_map = False
 
 					elif mapchip == 5 or mapchip == 11:
-						print 'mapping qcard {0} failed really hard'.format(qslot)
-						failures.append(j)
+						if j not in failures:
+							print 'mapping qcard {0} failed really hard'.format(qslot)
+							failures.append(j)
+						try_map = False						
 
 					else: mapchip += 1
 
-		for chip in xrange(12):
-			dc[chip].PedestalDAC(6)
-			dc.write()
-			dc.read()
+			for chip in xrange(12):
+				dc[chip].PedestalDAC(6)
+				dc.write()
+				dc.read()
 
-		try:
-			for failure in failures:
-				self.qcards.pop(failure)
-				print "qcard {0} successfully popped from self.qcards".format(self.qcards[failure])
-		except:
-			print "well that didn't work at all."  #DEBUG
+		for failure in failures:
+			a = self.qcards[failure]
+			self.qcards.pop(failure)
+			print "qcard {0} successfully popped from self.qcards".format(a)
 
 
 		if self.V:
