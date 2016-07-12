@@ -22,20 +22,21 @@ if __name__ == "__main__":
 	from uHTR import uHTR
 	uhtr_slots=[1, 2]
 	all_slots = [2,3,4,5,7,8,9,10,18,19,20,21,23,24,25,26]
-	qcard_slots=[2, 3, 4, 5]
+	qcard_slots=[18, 19, 20, 21]
 	b = webBus("pi5", 0)
-	uhtr = uHTR(uhtr_slots, qcard_slots, b, "Mason Dorseth", False)
+	uhtr = uHTR(uhtr_slots, all_slots, b, "Mason Dorseth", False)
 
 	uhtr.ped_test()
 	uhtr.ci_test()
 	uhtr.shunt_test()
 	uhtr.phase_test()
-	uhtr.make_jsons()
+	uhtr.make_jsons("This", "is", "a", "beaver", "test")
 
 class uHTR():
-	def __init__(self, uhtr_slots, qcard_slots, bus, user, overwrite, verbosity=True):
+	def __init__(self, uhtr_slots, qcard_slots, bus, user, overwrite, verbosity=True, save_histos=True):
 
 		self.V = verbosity
+		self.save_histos = save_histos
 
 		#Go to uhtrResults for dumping .pngs
         	self.cwd = os.getcwd()
@@ -72,9 +73,7 @@ class uHTR():
 		### List of keys: "slot" "link" "channel" "ped_test"
 
 		# setup functions
-		clock_setup(self.crate, uhtr_slots)
-		for slot in self.uhtr_slots:
-			init_links(self.crate, slot)
+		self.init_everything()
 		self.QIE_mapping()
 
 
@@ -84,6 +83,7 @@ class uHTR():
 #############################################################
 
 	def ped_test(self):
+		self.init_everything()
 		ped_settings = list(i-31 for i in xrange(63))
 		ped_results={}
 		ped_results["settings"]=ped_settings
@@ -131,7 +131,6 @@ class uHTR():
 				chip_map=self.get_QIE_map(qslot, chip)
 				ped_key = "{0}_{1}_{2}".format(chip_map[0], chip_map[1], chip_map[2])
 				chip_arr = ped_results[ped_key]
-				print "Chip Array is: "+str(chip_arr) #DEBUG
 				
 				#check if settings -31 to -3 are flat and -2 to 31 are linear
 				flat_test = True
@@ -161,6 +160,7 @@ class uHTR():
 
 
 	def ci_test(self):
+		self.init_everything()
 		ci_settings = [90, 180, 360, 720, 1440, 2880, 5760, 8640] #in fC
 		ci_results={}
 		ci_results["settings"]=ci_settings
@@ -231,6 +231,7 @@ class uHTR():
 		os.chdir(cwd)
  
 	def shunt_test(self):
+		self.init_everything()
 		peak_results = {}
 		default_peaks = [] #holds the CI values for 3.1 fC/LSB setting for chips
 		grand_ratio_pf = [0,0] #check for troubleshooting
@@ -285,7 +286,7 @@ class uHTR():
 			dc.read()
 
 		# calculate average default CI peak of default shunt
-		default_peaks_avg = sum(default_peaks)/len(default_peaks)
+		default_peaks_avg = sum(default_peaks)/len(default_peaks)  #DEBUG maybe get rid of this
 
 		#analyze results and make graphs
 		cwd = os.getcwd()
@@ -307,7 +308,7 @@ class uHTR():
 				ratio_arr = []    #used for making graphs
 				
 				for setting in xrange(len(peak_results[peak_key])):
-					ratio = float(chip_arr[setting]) / default_peaks_avg     #ratio between shunt-adjusted peak & default peak
+					ratio = float(chip_arr[setting]) / float(chip_arr[0])     #ratio between shunt-adjusted peak & default peak
 					ratio_arr.append(ratio)
 					histo_ratios[setting].append(ratio)
 					setting_result = False
@@ -337,8 +338,9 @@ class uHTR():
 
 
 	def phase_test(self):
+		self.init_everything
 		#Valid (GOOD!!!) settings for phase
-		phase_settings = range(0,11) + range(36,50) + range(64,75) + range(104,115)
+		phase_settings = range(0,50) + range(64,115)
 		phase_results={}
 		phase_results["settings"]=phase_settings
 		for setting in phase_settings:
@@ -406,7 +408,7 @@ class uHTR():
 				#if slopeTest == True: results=True
 				#self.update_QIE_results(qslot, chip, "phase", results)
 
-				if self.V: print 'qslot: {0}, chip: {1}, slope: {2}'.format(qslot, chip, slope)
+#				if self.V: print 'qslot: {0}, chip: {1}, slope: {2}'.format(qslot, chip, slope)
 			os.chdir(cwd2)
 		os.chdir(cwd)
 
@@ -611,7 +613,7 @@ class uHTR():
 			slot_num = str(file.split('_')[-1].split('.root')[0])
 
 			histo_results[slot_num] = getHistoInfo(signal=signalOn, file_in=path_to_root+"/"+file)
-		shutil.rmtree(out_dir)
+		if not self.save_histos: shutil.rmtree(out_dir)
 		return histo_results
 
 #############################################################
@@ -634,6 +636,20 @@ class uHTR():
 		return TDCInfo 
 
 ############################################################
+
+
+############################################################
+# Initialize Everything
+############################################################
+
+	def init_everything(self):
+		# setup functions
+		clock_setup(self.crate, self.uhtr_slots)
+		for slot in self.uhtr_slots:
+			init_links(self.crate, slot)
+
+############################################################
+
 
 #############################################################
 # Make ROOT things
