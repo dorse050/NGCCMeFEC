@@ -22,7 +22,7 @@ if __name__ == "__main__":
 	from uHTR import uHTR
 	uhtr_slots=[1, 2]
 	all_slots = [2,3,4,5,7,8,9,10,18,19,20,21,23,24,25,26]
-	qcard_slots=[18, 19, 20, 21]
+	qcard_slots=[2,3,4,5,7,8,9,10,18,23,24,25,26]
 	b = webBus("pi5", 0)
 	uhtr = uHTR(uhtr_slots, all_slots, b, "Mason Dorseth", False)
 
@@ -163,7 +163,6 @@ class uHTR():
 		self.init_everything()
 
 		attempts = range(num_attempts)
-		ci_results={}
 		histo_slopes = [] #stores all slopes for overall histogram
 		adc = hw.ADCConverter()
 
@@ -172,15 +171,18 @@ class uHTR():
 		qslots = self.qcards
 		for attempt in attempts:
 			failures = []
+			ci_results={}
+			if self.V and  attempt > 0: print "\nRETEST attempt {1}, qcards: {0}\n".format(qslots, attempt)
 			for setting in ci_settings:
-				if self.V: if attempt > 0: print "\nRETEST attempt {1}, qcards: {0}\n".format(qslots, attempt)
 				if self.V: print 'testing charge injection setting {0} fC'.format(setting)
 				for qslot in qslots:
 					hw.SetQInjMode(1, qslot, self.bus)
 					dc=hw.getDChains(qslot, self.bus)
 					dc.read()
 					for chip in xrange(12):
+						dc[chip].PedestalDAC(6)
 						dc[chip].ChargeInjectDAC(setting)
+						dc[chip].Gsel(0)
 					dc.write()
 					dc.read()
 				histo_results=self.get_histo_results(self.crate, self.uhtr_slots, signalOn=True, out_dir="ci_histos_{0}".format(setting))
@@ -229,6 +231,7 @@ class uHTR():
 						self.update_QIE_results(qslot, chip, "ci", test_pass)
 					
 					if not test_pass and qslot not in failures: failures.append(qslot)
+
 					if attempt == 1: self.master_dict["ci_flags"] = failures					
 
 					if self.V: print 'qslot: {0}, chip: {1}, slope: {2}, pass: {3}'.format(qslot, chip, slope, test_pass)
@@ -237,6 +240,8 @@ class uHTR():
 			os.chdir(cwd)
 			
 			qslots = failures
+
+		print "Failed cards: {0}".format(failures)		
 
 		#make histogram of all slope results
 		os.chdir(cwd + "/histo_statistics")	
@@ -248,7 +253,6 @@ class uHTR():
 		self.init_everything()
 
 		attempts = range(num_attempts)
-		peak_results = {}
 		adc = hw.ADCConverter()
 
 		#ratio between default 3.1fC/LSB and itself/other GSel gains
@@ -259,15 +263,16 @@ class uHTR():
 		setting_list = [3.1, 4.65, 6.2, 9.3, 12.4, 15.5, 18.6, 21.7, 24.8, 27.9, 31, 34.1, 35.65]
 
 		histo_ratios=[]
-		for x in setting_list:
-			histo_ratios.append(x)
-			histo_ratios[x] = []
+		for i, setting in enumerate(setting_list):
+			histo_ratios.append(i)
+			histo_ratios[i] = []
 	
 		qslots = self.qcards
 		for attempt in attempts:
-			failures = []	
+			failures = []
+			peak_results = {}
+			if self.V and attempt > 0: print "\nRETEST attempt {1}, qcards: {0}\n".format(qslots, attempt)
 			for i, setting in enumerate(bit_settings):
-				if self.V: if attempt > 0: print "\nRETEST attempt {1}, qcards: {0}\n".format(qslots, attempt)
 				if self.V: print 'testing shunt setting ratio '+str(nominalGainRatios[i])
 				for qslot in qslots:
 					dc=hw.getDChains(qslot, self.bus)
@@ -316,8 +321,8 @@ class uHTR():
 			
 				for chip in xrange(12):
 					chip_map=self.get_QIE_map(qslot, chip)
-					peak_key = "{0}_{1}_{2}".format(chip_map[0], chip_map[1], chip_map[2])
-					chip_arr=peak_results[peak_key]
+					key = "{0}_{1}_{2}".format(chip_map[0], chip_map[1], chip_map[2])
+					chip_arr=peak_results[key]
 					ratio_arr = []    #used for making graphs
 					
 					for setting, peak in enumerate(chip_arr):
@@ -327,7 +332,7 @@ class uHTR():
 	
 					slope = self.graph_results("shunt", nominalGainRatios, ratio_arr, "{0}_{1}".format(qslot, chip))
 					test_pass = False
-					if slope >= 0.95  and slope <= 1.1: test_pass = True
+					if slope >= 0.95  and slope <= 1.15: test_pass = True
 					
 					if not test_pass and qslot not in failures: failures.append(qslot)
 					
@@ -336,13 +341,15 @@ class uHTR():
 					if test_pass or attempt == attempts[-1]:
 						self.update_QIE_results(qslot, chip, "shunt", test_pass)
 
-					if self.V: print 'qslot: {0}, chip: {1}, setting: {2},  pass: {3}'.format(qslot, chip, setting, test_pass)
+					if self.V: print 'qslot: {0}, chip: {1}, slope: {2},  pass: {3}'.format(qslot, chip, slope, test_pass)
 			
 				os.chdir(cwd2)
 			os.chdir(cwd)
 
 			qslots = failures
 		
+		print "Failed cards: {0}".format(failures)
+
 		#make histogram of all results for each setting
 		cwd = os.getcwd()
 		os.chdir(cwd + "/histo_statistics")
@@ -540,7 +547,7 @@ class uHTR():
 			f += self.get_QIE_results(qslot, chip, test_key)[1]
 		return p, f
 
-	def get_flag(self, qslot, key)
+	def get_flag(self, qslot, key):
 		if qslot in self.master_dict[key]: return True
 		else: return False
 
@@ -593,10 +600,12 @@ class uHTR():
 				dc.write()
 				dc.read()
 
-		for failure in failures:
-			a = self.qcards[failure]
-			self.qcards.pop(failure)
-			print "qcard {0} successfully popped from self.qcards".format(a)
+		if len(failures) > 0:
+			failures.reverse() 
+			for failure in failures:
+				a = self.qcards[failure]
+				self.qcards.pop(failure)
+				print "qcard {0} successfully popped from self.qcards".format(a)
 
 
 		if self.V:
@@ -680,6 +689,7 @@ class uHTR():
 	def graph_results(self, test, x, y, key):
 		if len(x) != len(y):
 			print 'Sets are of unequal length'
+			print len(x), len(y)
 			return None
 		
 		if test == "ped":
